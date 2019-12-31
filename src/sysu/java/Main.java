@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.util.Objects;
 
 public class Main {
-
     public static void main(String[] args) throws IOException {
         if (args.length <= 0) args = new String[]{"--server"};
 
@@ -20,7 +19,7 @@ public class Main {
             serverBuilder.setBasePath("data");
             builder = serverBuilder;
         }
-        if (Objects.equals(mode, "client")) {
+        if (Objects.equals(mode, "--client")) {
             var clientBuilder = new ClientPanHostBuilder();
             clientBuilder.setServerAddress("localhost");
             clientBuilder.setServerPort(3000);

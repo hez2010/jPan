@@ -9,11 +9,17 @@ import java.io.PipedOutputStream;
 import java.net.Socket;
 import java.util.HashMap;
 
+enum TaskStatus {
+    Sending, Receiving, Completed
+}
+
 public abstract class SocketTask {
     private static final HashMap<Integer, SocketTask> map = new HashMap<>();
+    private TaskStatus status = TaskStatus.Sending;
 
-    public void postTask(Socket client, int length, PipedInputStream input) {
+    public void postTask(Socket client, int length, PipedOutputStream data) throws IOException {
         var header = new Header();
+        var input = new PipedInputStream(data);
         header.setLength(length);
         var id = header.getId();
         synchronized (map) {
@@ -32,6 +38,7 @@ public abstract class SocketTask {
                     count += buffer.length;
                     output.write(buffer);
                 }
+                input.close();
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -39,7 +46,12 @@ public abstract class SocketTask {
         }).start();
     }
 
+    public TaskStatus getStatus() {
+        return status;
+    }
+
     private void handleBody(int length, Socket client) throws IOException {
+        status = TaskStatus.Receiving;
         var output = new PipedOutputStream();
         var stream = new PipedInputStream(output);
         new Thread(() -> completedTask(length, stream)).start();
@@ -51,6 +63,7 @@ public abstract class SocketTask {
             count += buffer.length;
             output.write(buffer);
         }
+        status = TaskStatus.Completed;
     }
 
     private void handleMessage(Socket client) {

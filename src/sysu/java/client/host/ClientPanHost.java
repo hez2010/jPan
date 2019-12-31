@@ -1,6 +1,7 @@
 package sysu.java.client.host;
 
 import sysu.java.IPanHost;
+import sysu.java.client.gui.ClientUI;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -18,5 +19,6 @@ public class ClientPanHost implements IPanHost {
     @Override
     public void run() throws IOException {
         socket = new Socket(address, port);
+        new ClientUI(socket);
     }
 }
