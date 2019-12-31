@@ -12,9 +12,12 @@ import javax.swing.*;
 public class ClientUI extends JFrame {
 	private Socket socket = null;
 	private ImageIcon icon;
-	private JPanel panel;
+	private JPanel now;
+	private CardLayout cl;
+	private JPanel all;
+	private int count = 1;
 	
-	public client(String title) throws UnknownHostException, IOException {
+	public ClientUI(String title) throws UnknownHostException, IOException {
 		setTitle(title);
 		init();
 	}
@@ -31,6 +34,8 @@ public class ClientUI extends JFrame {
    	 		System.out.println(e);       
    	 	}
 		
+		cl = new CardLayout();
+		all = new JPanel(cl);
 		
 		JPopupMenu pmenu = new JPopupMenu();
 		JMenuItem create, upload;
@@ -44,7 +49,7 @@ public class ClientUI extends JFrame {
 		icon = new ImageIcon(getClass().getResource("../icon/1.png"));
 		this.setIconImage(icon.getImage());
 		
-		panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+		JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 		panel.setBackground(Color.WHITE);
 		
 		panel.addMouseListener(new MouseListener() {
@@ -112,7 +117,11 @@ public class ClientUI extends JFrame {
 			}	
 		});
 		
-		add(panel);
+		all.add(panel, count + "");
+		count++;
+		now = panel;
+		add(all);
+		cl.show(all, count - 1 + "");
 	}
 	
 	public void createFile(String name) {
@@ -196,7 +205,7 @@ public class ClientUI extends JFrame {
 			}
 		});
 		
-		panel.add(label);
+		now.add(label);
 		this.validate();
 	}
 	
@@ -205,9 +214,23 @@ public class ClientUI extends JFrame {
 		image.setImage(image.getImage().getScaledInstance(100, 80,Image.SCALE_DEFAULT));
 		JLabel label = new JLabel(name);
 		label.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 15));
+		now.add(label);
+		this.validate();
 		
 		JPopupMenu menu2 = new JPopupMenu();
 		JMenuItem nf = createItem("New Folder");
+		JMenuItem upload = createItem("Upload");
+		JMenuItem back1 = createItem("Back");
+		
+		back1.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				cl.previous(all);
+				now = all;
+			}
+		});
+		
 		nf.addActionListener(new ActionListener() {
 
 			@Override
@@ -217,9 +240,34 @@ public class ClientUI extends JFrame {
 				createFolder(fname);
 			}
 		});
+		
+		upload.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				JFileChooser chooser = new JFileChooser();
+				chooser.setFileSelectionMode(JFileChooser.FILES_ONLY); 
+		        chooser.showDialog(new JLabel(), "选择");
+				File fi = chooser.getSelectedFile();
+				if(!Upload(fi))
+					JOptionPane.showMessageDialog(null, "Failed!", "UpLoad", JOptionPane.ERROR_MESSAGE);
+				else {
+					String name = fi.getName();
+					createFile(name);
+				}
+			}	
+		});
+		
 		menu2.add(nf);
+		menu2.add(upload);
+		menu2.add(back1);
 		
 		JPanel panel2 = new JPanel();
+		panel2.setLayout(new FlowLayout(FlowLayout.LEFT));
+		panel2.setBackground(Color.WHITE);
+		all.add(panel2, count + "");
+		count++;
+		
 		JPopupMenu menu = new JPopupMenu();
 		JMenuItem open, delete, back, rename;
 		open = createItem("Open");
@@ -228,7 +276,8 @@ public class ClientUI extends JFrame {
 		rename = createItem("Rename");
 		menu.add(open);
 		menu.add(rename);
-		menu.add(back);
+		if(count > 3)
+			menu.add(back);
 		menu.add(delete);
 		
 		open.addActionListener(new ActionListener() {
@@ -236,7 +285,8 @@ public class ClientUI extends JFrame {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				// TODO Auto-generated method stub
-				
+				cl.next(all);
+				now = panel2;
 			}
 		});
 		
@@ -264,6 +314,8 @@ public class ClientUI extends JFrame {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				// TODO Auto-generated method stub
+				cl.previous(all);
+				now = all;
 			}
 			
 		});
@@ -303,7 +355,6 @@ public class ClientUI extends JFrame {
 			public void mouseExited(MouseEvent e) {
 				// TODO Auto-generated method stub
 			}
-			
 		});
 		
 		label.addMouseListener(new MouseListener() {
@@ -311,9 +362,7 @@ public class ClientUI extends JFrame {
 			@Override
 			public void mouseClicked(MouseEvent e) {
 				// TODO Auto-generated method stub
-				if(e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() == 2) {
-					add(panel2);
-				}
+				
 			}
 
 			@Override
@@ -328,6 +377,11 @@ public class ClientUI extends JFrame {
 					menu.setVisible(true);
 					menu.show(e.getComponent(), e.getX(), e.getY());
 				}
+				
+				if(e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() == 2) {
+					cl.next(all);
+					now = panel2;
+				}
 			}
 
 			@Override
@@ -340,9 +394,6 @@ public class ClientUI extends JFrame {
 				// TODO Auto-generated method stub
 			}
 		});
-		
-		panel.add(label);
-		this.validate();
 	}
 	
 	public boolean Upload(File fi) {
@@ -418,7 +469,7 @@ public class ClientUI extends JFrame {
 	}
 	
 	public static void main(String[] args) throws UnknownHostException, IOException {
-		JFrame _c = new client("My Disc");
+		JFrame _c = new ClientUI("My Disc");
 		_c.setSize(1300, 900);
 		_c.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		_c.setLocationRelativeTo(null);
