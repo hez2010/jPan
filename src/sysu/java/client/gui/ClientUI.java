@@ -16,7 +16,7 @@ public class ClientUI extends JFrame {
 	private JPanel all;
 	private int count = 1;
 	
-	public ClientUI(Socket socket) throws UnknownHostException, IOException {
+	public ClientUI(Socket socket) throws IOException {
 		this.socket = socket;
 		setSize(1300, 900);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -27,7 +27,7 @@ public class ClientUI extends JFrame {
 		init();
 	}
 	
-	public void init() throws UnknownHostException, IOException {
+	public void init() {
 		try {        
    		 	for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {    
    		 		if ("Nimbus".equals(info.getName())) {            
@@ -93,33 +93,25 @@ public class ClientUI extends JFrame {
 			}
 		});
 		
-		create.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
-				String fname = JOptionPane.showInputDialog("Input the file name: ");
-				createFolder(fname);
-			}
+		create.addActionListener(e -> {
+			// TODO Auto-generated method stub
+			String fname = JOptionPane.showInputDialog("Input the file name: ");
+			createFolder(fname);
 		});
 		
-		upload.addActionListener(new ActionListener() {
+		upload.addActionListener(e -> {
+			// TODO Auto-generated method stub
+			JFileChooser chooser = new JFileChooser();
+			chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+			chooser.showDialog(new JLabel(), "选择");
+			File fi = chooser.getSelectedFile();
+			if(!Upload(fi))
+				JOptionPane.showMessageDialog(null, "Failed!", "UpLoad", JOptionPane.ERROR_MESSAGE);
+			else {
+				String name = fi.getName();
+				createFile(name);
+			}
 
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
-				JFileChooser chooser = new JFileChooser();
-				chooser.setFileSelectionMode(JFileChooser.FILES_ONLY); 
-		        chooser.showDialog(new JLabel(), "选择");
-				File fi = chooser.getSelectedFile();
-				if(!Upload(fi))
-					JOptionPane.showMessageDialog(null, "Failed!", "UpLoad", JOptionPane.ERROR_MESSAGE);
-				else {
-					String name = fi.getName();
-					createFile(name);
-				}
-				
-			}	
 		});
 		
 		all.add(panel, count + "");
@@ -131,15 +123,15 @@ public class ClientUI extends JFrame {
 	
 	public void createFile(String name) {
 		JLabel label = new JLabel(name);
-		String subfix = name.substring(name.lastIndexOf(".") + 1);
+		String suffix = name.substring(name.lastIndexOf(".") + 1).toLowerCase();
 		String icon = "";
-		if(subfix.equals("txt")) {
+		if(suffix.equals("txt")) {
 			icon = "../icon/t.png";
-		} else if(subfix.equals("docx") || subfix.equals("doc")) {
+		} else if(suffix.equals("docx") || suffix.equals("doc")) {
 			icon = "../icon/w.png";
-		} else if(subfix.equals("pdf")) {
+		} else if(suffix.equals("pdf")) {
 			icon = "../icon/p.png";
-		} else if(subfix.equals("MP3") || subfix.equals("mp3")) {
+		} else if(suffix.equals("mp3")) {
 			icon = "../icon/m.png";
 		} else {
 			icon = "../icon/o.png";
@@ -201,27 +193,19 @@ public class ClientUI extends JFrame {
 			}
 		});
 		
-		download.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
-				JFileChooser chooser = new JFileChooser();
-				chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY); 
-		        chooser.showDialog(new JLabel(), "选择");
-				File in = chooser.getSelectedFile();
-				if(!Download(in))
-					JOptionPane.showMessageDialog(null, "Failed!", "DownLoad", JOptionPane.ERROR_MESSAGE);
-			}
+		download.addActionListener(e -> {
+			// TODO Auto-generated method stub
+			JFileChooser chooser = new JFileChooser();
+			chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+			chooser.showDialog(new JLabel(), "选择");
+			File in = chooser.getSelectedFile();
+			if(!Download(in))
+				JOptionPane.showMessageDialog(null, "Failed!", "DownLoad", JOptionPane.ERROR_MESSAGE);
 		});
 	
-		delete.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
-				label.setVisible(false);
-			}
+		delete.addActionListener(e -> {
+			// TODO Auto-generated method stub
+			label.setVisible(false);
 		});
 		
 		now.add(label);
@@ -241,23 +225,16 @@ public class ClientUI extends JFrame {
 		JMenuItem upload = createItem("Upload");
 		JMenuItem back1 = createItem("Back");
 		
-		back1.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
-				cl.previous(all);
-				now = all;
-			}
+		back1.addActionListener(e -> {
+			// TODO Auto-generated method stub
+			cl.previous(all);
+			now = all;
 		});
 		
-		nf.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
-				String fname = JOptionPane.showInputDialog("Input the file name: ");
-				createFolder(fname);
-			}
+		nf.addActionListener(e -> {
+			// TODO Auto-generated method stub
+			String fname = JOptionPane.showInputDialog("Input the file name: ");
+			createFolder(fname);
 		});
 		
 		upload.addActionListener(new ActionListener() {
@@ -302,44 +279,27 @@ public class ClientUI extends JFrame {
 			menu.add(back);
 		menu.add(delete);
 		
-		open.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
-				cl.next(all);
-				now = panel2;
-			}
+		open.addActionListener(e -> {
+			// TODO Auto-generated method stub
+			cl.next(all);
+			now = panel2;
 		});
 		
-		rename.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
-				String nm = JOptionPane.showInputDialog("Input the new name: ");
-				label.setText(nm);
-			}
+		rename.addActionListener(e -> {
+			// TODO Auto-generated method stub
+			String nm = JOptionPane.showInputDialog("Input the new name: ");
+			label.setText(nm);
 		});
 		
-		delete.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
-				label.setVisible(false);
-			}
+		delete.addActionListener(e -> {
+			// TODO Auto-generated method stub
+			label.setVisible(false);
 		});
 		
-		back.addActionListener(new ActionListener() {
-
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
-				cl.previous(all);
-				now = all;
-			}
-			
+		back.addActionListener(e -> {
+			// TODO Auto-generated method stub
+			cl.previous(all);
+			now = all;
 		});
 		
 		label.setVerticalTextPosition(JLabel.BOTTOM);
