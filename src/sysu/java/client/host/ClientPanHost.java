@@ -1,10 +1,15 @@
 package sysu.java.client.host;
 
 import sysu.java.IPanHost;
+import sysu.java.Utils;
 import sysu.java.client.gui.ClientUI;
+import sysu.java.server.host.ServerCommands;
 
 import java.io.IOException;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 public class ClientPanHost implements IPanHost {
     private String address;

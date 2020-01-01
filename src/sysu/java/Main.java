@@ -16,7 +16,7 @@ public class Main {
         if (Objects.equals(mode, "--server")) {
             var serverBuilder = new ServerPanHostBuilder();
             serverBuilder.setPort(3000);
-            serverBuilder.setBasePath("data");
+            serverBuilder.setBasePath("C:\\Users\\hez20");
             builder = serverBuilder;
         }
         if (Objects.equals(mode, "--client")) {

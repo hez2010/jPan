@@ -17,9 +17,8 @@ public abstract class SocketTask {
     private static final HashMap<Integer, SocketTask> map = new HashMap<>();
     private TaskStatus status = TaskStatus.Sending;
 
-    public void postTask(Socket client, int length, PipedOutputStream data) throws IOException {
+    public void postTask(Socket client, int length, PipedInputStream input) throws IOException {
         var header = new Header();
-        var input = new PipedInputStream(data);
         header.setLength(length);
         var id = header.getId();
         synchronized (map) {

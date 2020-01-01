@@ -51,6 +51,7 @@ public class ServerPanHost implements IPanHost {
                 controller.executeAction(ServerCommands.values()[command], id, length - 4, input, output);
             } catch (IOException e) {
                 e.printStackTrace();
+                break;
             }
         }
     }

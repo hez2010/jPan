@@ -16,8 +16,14 @@ public class ClientUI extends JFrame {
 	private JPanel all;
 	private int count = 1;
 	
-	public ClientUI(String title) throws UnknownHostException, IOException {
-		setTitle(title);
+	public ClientUI(Socket socket) throws UnknownHostException, IOException {
+		this.socket = socket;
+		setSize(1300, 900);
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setLocationRelativeTo(null);
+		setBackground(Color.BLACK);
+		setTitle("jPan");
+		setVisible(true);
 		init();
 	}
 	
@@ -482,14 +488,5 @@ public class ClientUI extends JFrame {
 		JMenuItem r = new JMenuItem(name);
 		r.setFont(font);
 		return r;
-	}
-	
-	public static void main(String[] args) throws UnknownHostException, IOException {
-		JFrame _c = new ClientUI("My Disc");
-		_c.setSize(1300, 900);
-		_c.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		_c.setLocationRelativeTo(null);
-		_c.setVisible(true);
-		_c.setBackground(Color.BLACK);
 	}
 }
