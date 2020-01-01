@@ -13,20 +13,21 @@ public abstract class Action {
     private int length = -1;
     private boolean wrote = false;
 
-    public void invoke(ServerPanHost host, int id, int length, InputStream input, OutputStream output) {
+    public boolean invoke(ServerPanHost host, int id, int length, InputStream input, OutputStream output) {
         this.id = id;
         this.output = output;
         this.host = host;
-        execute(length, input);
+        return execute(length, input);
     }
 
-    public abstract void execute(int length, InputStream input);
+    public abstract boolean execute(int length, InputStream input);
 
-    protected void writeHeader(int length) throws IOException {
+    protected void writeHeader(int length, int status) throws IOException {
         if (wrote) throw new RuntimeException("A message has already been written");
         this.length = length;
         output.write(Utils.intToByte4(id));
         output.write(Utils.intToByte4(length));
+        output.write(Utils.intToByte4(status));
         wrote = true;
     }
 
@@ -36,7 +37,7 @@ public abstract class Action {
             buf.write("success".getBytes(StandardCharsets.UTF_8));
             buf.write(Utils.messageSplitter);
             buf.write(message.getBytes(StandardCharsets.UTF_8));
-            writeHeader(buf.size());
+            writeHeader(buf.size(), 0);
             writeBody(buf.toByteArray(), 0);
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
@@ -49,7 +50,7 @@ public abstract class Action {
             buf.write("failure".getBytes(StandardCharsets.UTF_8));
             buf.write(Utils.messageSplitter);
             buf.write(message.getBytes(StandardCharsets.UTF_8));
-            writeHeader(buf.size());
+            writeHeader(buf.size(), 1);
             writeBody(buf.toByteArray(), 0);
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
@@ -58,13 +59,7 @@ public abstract class Action {
 
     protected void writeBody(PipedInputStream input) throws IOException {
         if (length == -1) throw new RuntimeException("No header has been written");
-        var count = 0;
-        while (count < length) {
-            var available = Math.min(input.available(), Math.max(length - count, 0));
-            var buffer = input.readNBytes(available);
-            count += buffer.length;
-            output.write(buffer);
-        }
+        Utils.transferWithLength(length, input, output);
         input.close();
     }
 

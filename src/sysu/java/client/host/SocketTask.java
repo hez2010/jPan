@@ -16,6 +16,26 @@ enum TaskStatus {
 public abstract class SocketTask {
     private static final HashMap<Integer, SocketTask> map = new HashMap<>();
     private TaskStatus status = TaskStatus.Sending;
+    private static final Object lock = new Object();
+
+    private synchronized static void handleMessage(Socket client) {
+        try {
+            var input = client.getInputStream();
+            var incomingId = Utils.byte4ToInt(input.readNBytes(4), 0);
+            var length = Utils.byte4ToInt(input.readNBytes(4), 0);
+            var flagStatus = Utils.byte4ToInt(input.readNBytes(4), 0);
+            SocketTask handler;
+            synchronized (map) {
+                handler = map.get(incomingId);
+                map.remove(incomingId);
+            }
+            if (handler != null) {
+                handler.handleBody(length, flagStatus, client);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     public void postTask(Socket client, byte[] input) {
         var header = new Header();
@@ -26,16 +46,22 @@ public abstract class SocketTask {
         }
         new Thread(() -> handleMessage(client)).start();
         new Thread(() -> {
-            try {
-                var output = client.getOutputStream();
-                output.write(Utils.intToByte4(id));
-                output.write(Utils.intToByte4(input.length));
-                output.write(input);
+            synchronized (lock) {
+                try {
+                    var output = client.getOutputStream();
+                    output.write(Utils.intToByte4(id));
+                    output.write(Utils.intToByte4(input.length));
+                    output.write(input);
 
-            } catch (IOException e) {
-                e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }).start();
+    }
+
+    public TaskStatus getStatus() {
+        return status;
     }
 
     public void postTask(Socket client, int length, PipedInputStream input) {
@@ -45,64 +71,37 @@ public abstract class SocketTask {
         synchronized (map) {
             map.put(id, this);
         }
+
         new Thread(() -> handleMessage(client)).start();
         new Thread(() -> {
-            try {
-                var output = client.getOutputStream();
-                output.write(Utils.intToByte4(id));
-                output.write(Utils.intToByte4(length));
-                var count = 0;
-                while (count < length) {
-                    var available = Math.min(input.available(), Math.max(length - count, 0));
-                    var buffer = input.readNBytes(available);
-                    count += buffer.length;
-                    output.write(buffer);
+            synchronized (lock) {
+                try {
+                    var output = client.getOutputStream();
+                    output.write(Utils.intToByte4(id));
+                    output.write(Utils.intToByte4(length));
+                    Utils.transferWithLength(length, input, output);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        input.close();
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
                 }
-                input.close();
-
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         }).start();
     }
 
-    public TaskStatus getStatus() {
-        return status;
-    }
-
-    private void handleBody(int length, Socket client) throws IOException {
+    private void handleBody(int length, int flagStatus, Socket client) throws IOException {
         status = TaskStatus.Receiving;
         var output = new PipedOutputStream();
         var stream = new PipedInputStream(output);
-        new Thread(() -> completedTask(length, stream)).start();
-        var count = 0;
+        new Thread(() -> completedTask(length, flagStatus, stream)).start();
         var input = client.getInputStream();
-        while (count < length) {
-            var available = Math.min(input.available(), Math.max(length - count, 0));
-            var buffer = input.readNBytes(available);
-            count += buffer.length;
-            output.write(buffer);
-        }
+        Utils.transferWithLength(length, input, output);
         status = TaskStatus.Completed;
     }
 
-    private void handleMessage(Socket client) {
-        try {
-            var input = client.getInputStream();
-            var incomingId = Utils.byte4ToInt(input.readNBytes(4), 0);
-            var length = Utils.byte4ToInt(input.readNBytes(4), 0);
-            SocketTask handler;
-            synchronized (map) {
-                handler = map.get(incomingId);
-                map.remove(incomingId);
-            }
-            if (handler != null) {
-                handler.handleBody(length, client);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public abstract void completedTask(int length, PipedInputStream input);
+    public abstract void completedTask(int length, int status, PipedInputStream input);
 }

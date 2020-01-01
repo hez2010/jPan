@@ -1,9 +1,6 @@
 package sysu.java;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,11 +33,21 @@ public class Utils {
     public static void deleteDirectory(File directoryToBeDeleted) {
         var allContents = directoryToBeDeleted.listFiles();
         if (allContents != null) {
-            for (File file : allContents) {
+            for (var file : allContents) {
                 deleteDirectory(file);
             }
         }
         directoryToBeDeleted.delete();
+    }
+
+    public static String[] getResult(InputStream stream, int length) throws IOException {
+        var result = seekSplitter(stream);
+        length -= result.length + messageSplitter.length;
+        String message;
+        if (length > 0)
+            message = new String(stream.readNBytes(length), StandardCharsets.UTF_8);
+        else message = "";
+        return new String[]{new String(result, StandardCharsets.UTF_8), message};
     }
 
     public static String[] listFiles(String path) {
@@ -56,11 +63,33 @@ public class Utils {
                     else
                         result.add("f:" + file.length() + ":" + file.getName());
                 }
+                dir.close();
             } catch (Exception ex) {
                 System.out.println(ex.getMessage());
             }
         }
         return result.toArray(new String[0]);
+    }
+
+    public static void transferWithLength(int length, InputStream input, OutputStream output) throws IOException {
+        var buffer = new byte[131072];
+        var count = 0;
+        while (count < length) {
+            if (length - count >= 131072) {
+                var len = input.read(buffer);
+                count += len;
+                output.write(buffer, 0, len);
+            } else {
+                var remainBuffer = input.readNBytes(length - count);
+                count += remainBuffer.length;
+                output.write(remainBuffer);
+            }
+        }
+    }
+
+    public static boolean checkPath(String path) {
+        var tmp = path.replaceAll("\\\\", "/");
+        return !tmp.equals("..") && !tmp.contains("../") && !tmp.contains("./") && !tmp.equals(".");
     }
 
     private static boolean compare(byte[] buffer, int offset) {

@@ -55,6 +55,8 @@ public class ServerPanHost implements IPanHost {
                 var id = Utils.byte4ToInt(input.readNBytes(4), 0);
                 var length = Utils.byte4ToInt(input.readNBytes(4), 0);
                 var command = Utils.byte4ToInt(input.readNBytes(4), 0);
+                System.out.println("Command " + ServerCommands.values()[command] +
+                        " from client " + addr + " received: \n  --> Params: id = " + id + ", length = " + length);
                 controller.executeAction(ServerCommands.values()[command], id, length - 4, input, output);
             } catch (IOException e) {
                 System.out.println("Client " + addr + " left");

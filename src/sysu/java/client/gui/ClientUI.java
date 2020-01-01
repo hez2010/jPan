@@ -7,9 +7,9 @@ import sysu.java.server.host.ServerCommands;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.PipedInputStream;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -43,7 +43,7 @@ class FileTable extends JTable {
 		var index = this.getSelectedRow();
 		var model = (DefaultTableModel) getModel();
 		return new FileInfo(model.getValueAt(index, 0).toString(),
-				Integer.parseInt(model.getValueAt(index, 1).toString()),
+				Integer.parseInt(model.getValueAt(index, 1).toString().replaceAll("\\s+字节", "")),
 				model.getValueAt(index, 2).toString());
 	}
 }
@@ -94,6 +94,7 @@ public class ClientUI extends JFrame {
 	private FileTable table;
 	private JScrollPane pane;
 	private String currentPath = "";
+	private final JLabel currentPathLabel = new JLabel();
 
 	public ClientUI(Socket socket) {
 		this.socket = socket;
@@ -101,26 +102,311 @@ public class ClientUI extends JFrame {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setTitle("jPan");
 		setLayout(null);
-		init();
+		initUI();
 		setVisible(true);
+		listFiles(currentPath);
 	}
 
-	private void init() {
+	private void initUI() {
 		table = new FileTable();
 		table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		table.addMouseListener(new MouseListener() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				var currentSelection = table.getCurrentSelection();
+				var path = currentPath.isBlank() ?
+						currentSelection.getFileName() : currentPath + "/" + currentSelection.getFileName();
+				if (currentSelection.getType().equals("文件夹")) {
+					currentPath = path;
+					updateCurrentPathLabel();
+					listFiles(currentPath);
+				} else {
+					downloadFile(path, currentSelection.getFileName());
+					System.out.println("下载文件到本地: " + path);
+				}
+			}
 
+			@Override
+			public void mousePressed(MouseEvent e) {
+
+			}
+
+			@Override
+			public void mouseReleased(MouseEvent e) {
+
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent e) {
+
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e) {
+
+			}
+		});
+
+		currentPathLabel.setBounds(16, 16, 600, 20);
+		updateCurrentPathLabel();
+		add(currentPathLabel);
 		pane = new JScrollPane(table);
 		pane.setBounds(16, 36, 750, 500);
 		add(pane, BorderLayout.CENTER);
 
-		listFiles(currentPath);
+		var back = new JButton();
+		back.setBounds(620, 16, 66, 20);
+		back.setText("上层");
+		back.addMouseListener(new MouseListener() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if (currentPath.isBlank()) return;
+				var index = currentPath.lastIndexOf("/");
+				currentPath = index == -1 ? "" : currentPath.substring(0, index);
+				updateCurrentPathLabel();
+				listFiles(currentPath);
+			}
+
+			@Override
+			public void mousePressed(MouseEvent e) {
+
+			}
+
+			@Override
+			public void mouseReleased(MouseEvent e) {
+
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent e) {
+
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e) {
+
+			}
+		});
+		add(back);
+
+		var refresh = new JButton();
+		refresh.setBounds(700, 16, 66, 20);
+		refresh.setText("刷新");
+		refresh.addMouseListener(new MouseListener() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				listFiles(currentPath);
+			}
+
+			@Override
+			public void mousePressed(MouseEvent e) {
+
+			}
+
+			@Override
+			public void mouseReleased(MouseEvent e) {
+
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent e) {
+
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e) {
+
+			}
+		});
+
+		add(refresh);
 	}
 
-	private void listFiles(String path) {
+	private void updateCurrentPathLabel() {
+		currentPathLabel.setText("当前目录: /" + currentPath);
+	}
+
+	// 删除服务器上 path 文件夹和该文件夹下的所有文件
+	private void removeFolder(String path) {
 		var task = new SocketTask() {
 			@Override
-			public void completedTask(int length, PipedInputStream input) {
+			public void completedTask(int length, int status, PipedInputStream input) {
 				try {
+					String[] result = Utils.getResult(input, length);
+					if (!result[0].equals("success")) System.out.println(result[1]);
+					else System.out.println("success");
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+			}
+		};
+
+		try {
+			var data = new ByteArrayOutputStream();
+			data.write(Utils.intToByte4(ServerCommands.RemoveFolder.ordinal()));
+			data.write(path.getBytes(StandardCharsets.UTF_8));
+			task.postTask(socket, data.toByteArray());
+			data.close();
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	// 在服务器上创建 path 路径的文件夹
+	private void createFolder(String path) {
+		var task = new SocketTask() {
+			@Override
+			public void completedTask(int length, int status, PipedInputStream input) {
+				try {
+					String[] result = Utils.getResult(input, length);
+					if (!result[0].equals("success")) System.out.println(result[1]);
+					else System.out.println("success");
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+			}
+		};
+
+		try {
+			var data = new ByteArrayOutputStream();
+			data.write(Utils.intToByte4(ServerCommands.CreateFolder.ordinal()));
+			data.write(path.getBytes(StandardCharsets.UTF_8));
+			task.postTask(socket, data.toByteArray());
+			data.close();
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	// 将服务器上 path 路径的文件删除
+	private void removeFile(String path) {
+		var task = new SocketTask() {
+			@Override
+			public void completedTask(int length, int status, PipedInputStream input) {
+				try {
+					String[] result = Utils.getResult(input, length);
+					if (!result[0].equals("success")) System.out.println(result[1]);
+					else System.out.println("success");
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+			}
+		};
+
+		try {
+			var data = new ByteArrayOutputStream();
+			data.write(Utils.intToByte4(ServerCommands.RemoveFile.ordinal()));
+			data.write(path.getBytes(StandardCharsets.UTF_8));
+			task.postTask(socket, data.toByteArray());
+			data.close();
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	// 将服务器上 path 路径的文件下载到 target
+	private void downloadFile(String path, String target) {
+		var file = new File(target);
+		if (file.exists()) {
+			// 文件已存在
+			System.out.println("File exists");
+			return;
+		}
+		var task = new SocketTask() {
+
+			@Override
+			public void completedTask(int length, int status, PipedInputStream input) {
+				try {
+					if (status != 0) { // 标志位为不成功
+						String[] result = Utils.getResult(input, length);
+						System.out.println(result[1]);
+						return;
+					}
+					// 否则
+					OutputStream fileStream;
+					try {
+						if (!file.exists())
+							fileStream = new FileOutputStream(file);
+						else fileStream = new ByteArrayOutputStream();
+					} catch (Exception ex) {
+						fileStream = new ByteArrayOutputStream();
+					}
+					Utils.transferWithLength(length, input, fileStream);
+					fileStream.close();
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+			}
+		};
+
+		try {
+			var data = new ByteArrayOutputStream();
+			data.write(Utils.intToByte4(ServerCommands.DownloadFile.ordinal()));
+			data.write(path.getBytes(StandardCharsets.UTF_8));
+			task.postTask(socket, data.toByteArray());
+			data.close();
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	// 将本机的 path 路径的文件上传至服务器的 target
+	private void uploadFile(String path, String target) {
+		var task = new SocketTask() {
+			@Override
+			public void completedTask(int length, int status, PipedInputStream input) {
+				try {
+					String[] result = Utils.getResult(input, length);
+					if (!result[0].equals("success")) System.out.println(result[1]);
+					else System.out.println("success");
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+			}
+		};
+		var file = new File(path);
+		if (!file.exists()) {
+			// 本机路径为 path 的文件不存在
+			return;
+		}
+		var fileLen = (int) file.length();
+		try {
+			var fileStream = new FileInputStream(file);
+			var output = new PipedOutputStream();
+			var input = new PipedInputStream(output);
+			var targetPath = target.getBytes(StandardCharsets.UTF_8);
+			new Thread(() -> {
+				try {
+					output.write(Utils.intToByte4(ServerCommands.UploadFile.ordinal()));
+					output.write(targetPath);
+					output.write(Utils.messageSplitter);
+					Utils.transferWithLength(fileLen, fileStream, output);
+					fileStream.close();
+					output.close();
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+			}).start();
+			task.postTask(socket,
+					targetPath.length + 4 + Utils.messageSplitter.length + fileLen, input);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	// 列出服务器 path 目录下的所有文件
+	private void listFiles(String path) {
+		table.clearAllRows();
+		var task = new SocketTask() {
+			@Override
+			public void completedTask(int length, int status, PipedInputStream input) {
+				try {
+					if (status != 0) { // 标志位为不成功
+						String[] result = Utils.getResult(input, length);
+						System.out.println(result[1]);
+						return;
+					}
+					// 否则
 					byte[] data;
 					var files = new ArrayList<String>();
 					var dirs = new ArrayList<String>();
@@ -132,10 +418,12 @@ public class ClientUI extends JFrame {
 							else files.add(name);
 						}
 					} while (data.length > 0);
+					// 文件夹
 					for (var i : dirs) {
 						var fileInfo = i.split(":");
 						table.addRow(new FileInfo(fileInfo[2], Integer.parseInt(fileInfo[1]), "文件夹"));
 					}
+					// 文件
 					for (var i : files) {
 						var fileInfo = i.split(":");
 						table.addRow(new FileInfo(fileInfo[2], Integer.parseInt(fileInfo[1]), "文件"));
@@ -145,6 +433,7 @@ public class ClientUI extends JFrame {
 				}
 			}
 		};
+
 		try {
 			var data = new ByteArrayOutputStream();
 			data.write(Utils.intToByte4(ServerCommands.ListFiles.ordinal()));

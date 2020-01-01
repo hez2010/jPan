@@ -38,7 +38,9 @@ public class ServerController {
         var action = map.get(key);
         if (action != null) {
             try {
-                ((Action) action.newInstance()).invoke(host, id, length, input, output);
+                System.out.println("  --> Mapped action: " + action.getName());
+                var result = ((Action) action.newInstance()).invoke(host, id, length, input, output);
+                System.out.println("  --> Action " + (result ? "completed" : "failed"));
             } catch (Exception ex) {
                 ex.printStackTrace();
             }

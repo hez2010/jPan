@@ -11,7 +11,6 @@ public class Main {
         if (args.length <= 0) args = new String[]{"--client"};
 
         IPanHostBuilder builder = null;
-
         var mode = args[0];
         if (Objects.equals(mode, "--server")) {
             var serverBuilder = new ServerPanHostBuilder();

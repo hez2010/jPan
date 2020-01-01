@@ -12,9 +12,14 @@ import java.nio.file.Paths;
 @RegisterAction(command = ServerCommands.ListFiles)
 public class ListFilesAction extends Action {
     @Override
-    public void execute(int length, InputStream input) {
+    public boolean execute(int length, InputStream input) {
         try {
-            var path = Paths.get(host.getBasePath(), new String(input.readNBytes(length), StandardCharsets.UTF_8)).toAbsolutePath();
+            var pathStr = new String(input.readNBytes(length), StandardCharsets.UTF_8);
+            if (!Utils.checkPath(pathStr)) {
+                writeFailure("Illegal path");
+                return false;
+            }
+            var path = Paths.get(host.getBasePath(), pathStr).toAbsolutePath();
             var fileList = Utils.listFiles(path.toString());
             var buffer = new ByteArrayOutputStream();
 
@@ -24,10 +29,12 @@ public class ListFilesAction extends Action {
                 buffer.write(Utils.messageSplitter);
             }
 
-            writeHeader(buffer.size());
+            writeHeader(buffer.size(), 0);
             writeBody(buffer.toByteArray(), 0);
+            return true;
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
     }
 }
