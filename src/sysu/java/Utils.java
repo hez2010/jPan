@@ -73,6 +73,7 @@ public class Utils {
 
     public static byte[] seekSplitter(InputStream stream) throws IOException {
         var buffer = new ByteArrayOutputStream();
+        if (stream.available() == 0) return buffer.toByteArray();
         buffer.write(stream.readNBytes(messageSplitter.length));
         var off = 0;
         var array = buffer.toByteArray();

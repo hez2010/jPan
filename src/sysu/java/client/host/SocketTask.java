@@ -17,7 +17,28 @@ public abstract class SocketTask {
     private static final HashMap<Integer, SocketTask> map = new HashMap<>();
     private TaskStatus status = TaskStatus.Sending;
 
-    public void postTask(Socket client, int length, PipedInputStream input) throws IOException {
+    public void postTask(Socket client, byte[] input) {
+        var header = new Header();
+        header.setLength(input.length);
+        var id = header.getId();
+        synchronized (map) {
+            map.put(id, this);
+        }
+        new Thread(() -> handleMessage(client)).start();
+        new Thread(() -> {
+            try {
+                var output = client.getOutputStream();
+                output.write(Utils.intToByte4(id));
+                output.write(Utils.intToByte4(input.length));
+                output.write(input);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    public void postTask(Socket client, int length, PipedInputStream input) {
         var header = new Header();
         header.setLength(length);
         var id = header.getId();

@@ -8,7 +8,7 @@ import java.util.Objects;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        if (args.length <= 0) args = new String[]{"--server"};
+        if (args.length <= 0) args = new String[]{"--client"};
 
         IPanHostBuilder builder = null;
 
@@ -16,7 +16,7 @@ public class Main {
         if (Objects.equals(mode, "--server")) {
             var serverBuilder = new ServerPanHostBuilder();
             serverBuilder.setPort(3000);
-            serverBuilder.setBasePath("C:\\Users\\hez20");
+            serverBuilder.setBasePath("data");
             builder = serverBuilder;
         }
         if (Objects.equals(mode, "--client")) {

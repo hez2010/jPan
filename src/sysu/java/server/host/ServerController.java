@@ -6,10 +6,12 @@ import sysu.java.server.host.actions.RegisterAction;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Constructor;
 import java.util.HashMap;
 
 public class ServerController {
-    private final HashMap<Integer, Action> map = new HashMap<>();
+    @SuppressWarnings("rawtypes")
+    private final HashMap<Integer, Constructor> map = new HashMap<>();
     private ServerPanHost host;
 
     public void registerActions(ServerPanHost host) {
@@ -23,7 +25,7 @@ public class ServerController {
                 var annotation = i.getAnnotationInfo("sysu.java.server.host.actions.RegisterAction");
                 if (annotation != null) {
                     map.put(((RegisterAction) annotation.loadClassAndInstantiate()).command().ordinal(),
-                            (Action) (i.loadClass().getConstructor().newInstance()));
+                            (i.loadClass().getConstructor()));
                 }
             }
         } catch (Exception e) {
@@ -34,6 +36,12 @@ public class ServerController {
     public void executeAction(ServerCommands command, int id, int length, InputStream input, OutputStream output) {
         var key = command.ordinal();
         var action = map.get(key);
-        if (action != null) action.invoke(host, id, length, input, output);
+        if (action != null) {
+            try {
+                ((Action) action.newInstance()).invoke(host, id, length, input, output);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
     }
 }
