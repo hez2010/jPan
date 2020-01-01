@@ -126,7 +126,21 @@ public class ClientUI extends JFrame {
 	
 	public void createFile(String name) {
 		JLabel label = new JLabel(name);
-		ImageIcon image = new ImageIcon(getClass().getResource("../icon/3.png"));
+		String subfix = name.substring(name.lastIndexOf(".") + 1);
+		String icon = "";
+		if(subfix.equals("txt")) {
+			icon = "../icon/t.png";
+		} else if(subfix.equals("docx") || subfix.equals("doc")) {
+			icon = "../icon/w.png";
+		} else if(subfix.equals("pdf")) {
+			icon = "../icon/p.png";
+		} else if(subfix.equals("MP3") || subfix.equals("mp3")) {
+			icon = "../icon/m.png";
+		} else {
+			icon = "../icon/o.png";
+		}
+		
+		ImageIcon image = new ImageIcon(getClass().getResource(icon));
 		image.setImage(image.getImage().getScaledInstance(100, 80,Image.SCALE_DEFAULT));
 		label.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 15));label.setVerticalTextPosition(JLabel.BOTTOM);
 		label.setHorizontalTextPosition(JLabel.CENTER);
@@ -254,6 +268,9 @@ public class ClientUI extends JFrame {
 				else {
 					String name = fi.getName();
 					createFile(name);
+					ImageIcon icon2 = new ImageIcon(getClass().getResource("../icon/3.png"));
+					icon2.setImage(image.getImage().getScaledInstance(100, 80,Image.SCALE_DEFAULT));
+					label.setIcon(icon2);
 				}
 			}	
 		});
