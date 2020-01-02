@@ -137,7 +137,7 @@ class DownloadActionListener implements ActionListener {
 			var chooser = new JFileChooser();
 			chooser.setDialogTitle("选择下载位置");
 			chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-			chooser.showDialog(null, "确定");
+			if (chooser.showDialog(null, "确定") != JFileChooser.APPROVE_OPTION) return;
 			var file = chooser.getSelectedFile();
 			if (file == null) return;
 			if (!file.exists()) return;
@@ -287,7 +287,7 @@ public class ClientUI extends JFrame {
 			var chooser = new JFileChooser();
 			chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
 			chooser.setDialogTitle("选择上传文件");
-			chooser.showDialog(null, "选择");
+			if (chooser.showDialog(null, "选择") != JFileChooser.APPROVE_OPTION) return;
 			var file = chooser.getSelectedFile();
 			if (file == null) return;
 			if (!file.exists()) return;
@@ -300,7 +300,7 @@ public class ClientUI extends JFrame {
 
 		var back = new JButton();
 		back.setBounds(620, 16, 66, 20);
-		back.setText("上级");
+		back.setText("上层");
 		back.addMouseListener(new MouseListener() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
