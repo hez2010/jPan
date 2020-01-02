@@ -15,16 +15,16 @@ public class CreateFolderAction extends Action {
         try {
             var pathStr = new String(input.readNBytes(length), StandardCharsets.UTF_8);
             if (!Utils.checkPath(pathStr)) {
-                writeFailure("Illegal path");
+                writeFailure("路径非法");
                 return false;
             }
             var path = Paths.get(host.getBasePath(), pathStr).toAbsolutePath();
             var file = path.toFile();
             if (!file.exists() && file.mkdir()) {
-                writeSuccess("Folder created successfully");
+                writeSuccess("文件夹创建成功");
                 return true;
             } else {
-                writeFailure("Folder created failed");
+                writeFailure("文件夹创建失败");
                 return false;
             }
         } catch (IOException e) {

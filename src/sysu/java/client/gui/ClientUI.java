@@ -12,43 +12,13 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.io.*;
-import java.lang.reflect.Method;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 
-class FileTable extends JTable {
-	public FileTable() {
-		super(new DefaultTableModel(new Object[][]{}, new String[]{"文件名", "大小", "类型"}));
-	}
-
-	@Override
-	public boolean isCellEditable(int row, int column) {
-		return false;
-	}
-
-	public void addRow(FileInfo info) {
-		var model = (DefaultTableModel) getModel();
-		model.addRow(new Object[]{info.getFileName(), info.getLength() + " 字节", info.getType()});
-	}
-
-	public void removeRow(int index) {
-		var model = (DefaultTableModel) getModel();
-		model.removeRow(index);
-	}
-
-	public void clearAllRows() {
-		var model = (DefaultTableModel) getModel();
-		model.setRowCount(0);
-	}
-
-	public FileInfo getCurrentSelection() {
-		var index = this.getSelectedRow();
-		var model = (DefaultTableModel) getModel();
-		return new FileInfo(model.getValueAt(index, 0).toString(),
-				Integer.parseInt(model.getValueAt(index, 1).toString().replaceAll("\\s+字节", "")),
-				model.getValueAt(index, 2).toString());
-	}
+interface RemoveMethod {
+	void remove(String path);
 }
 
 class FileInfo {
@@ -87,14 +57,53 @@ class FileInfo {
 	}
 }
 
+interface DownloadMethod {
+	void download(String path, String target);
+}
+
+class FileTable extends JTable {
+	public FileTable() {
+		super(new DefaultTableModel(new Object[][]{}, new String[]{"文件名", "大小", "类型"}));
+	}
+
+	@Override
+	public boolean isCellEditable(int row, int column) {
+		return false;
+	}
+
+	public void addRow(FileInfo info) {
+		var model = (DefaultTableModel) getModel();
+		model.addRow(new Object[]{info.getFileName(), info.getLength() + " 字节", info.getType()});
+	}
+
+	public void removeRow(int index) {
+		var model = (DefaultTableModel) getModel();
+		model.removeRow(index);
+	}
+
+	public void clearAllRows() {
+		var model = (DefaultTableModel) getModel();
+		model.setRowCount(0);
+	}
+
+	public FileInfo getCurrentSelection() {
+		var index = this.getSelectedRow();
+		var model = (DefaultTableModel) getModel();
+		if (index == -1) return null;
+		return new FileInfo(model.getValueAt(index, 0).toString(),
+				Integer.parseInt(model.getValueAt(index, 1).toString().replaceAll("\\s+字节", "")),
+				model.getValueAt(index, 2).toString());
+	}
+}
+
 class DeleteActionListener implements ActionListener {
 	private String path;
-	private Method method;
+	private RemoveMethod method;
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		try {
-			method.invoke(path);
+			method.remove(path);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -109,24 +118,52 @@ class DeleteActionListener implements ActionListener {
 		this.path = path;
 	}
 
-	public Method getMethod() {
-		return method;
+	public void setMethod(RemoveMethod method) {
+		this.method = method;
+	}
+}
+
+class DownloadActionListener implements ActionListener {
+	private String path;
+	private DownloadMethod method;
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		try {
+			if (method == null) {
+				JOptionPane.showMessageDialog(null, "不支持下载文件夹");
+				return;
+			}
+			var chooser = new JFileChooser();
+			chooser.setDialogTitle("选择下载位置");
+			chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+			chooser.showDialog(null, "确定");
+			var file = chooser.getSelectedFile();
+			if (file == null) return;
+			if (!file.exists()) return;
+			method.download(path, file.getPath() + "/" + Path.of(path).getFileName().toString());
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
 	}
 
-	public void setMethod(Method method) {
+
+	public String getPath() {
+		return path;
+	}
+
+	public void setPath(String path) {
+		this.path = path;
+	}
+
+	public void setMethod(DownloadMethod method) {
 		this.method = method;
 	}
 }
 
 public class ClientUI extends JFrame {
 	private Socket socket;
-	private ImageIcon icon;
-	private JPanel now;
-	private CardLayout cl;
-	private JPanel all;
-	private int count = 1;
 	private FileTable table;
-	private JScrollPane pane;
 	private String currentPath = "";
 	private final JLabel currentPathLabel = new JLabel();
 
@@ -149,15 +186,17 @@ public class ClientUI extends JFrame {
 					break;
 				}
 			}
-		}catch(Exception e) {
-			System.out.println(e);
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
 		JPopupMenu menu = new JPopupMenu();
-		JMenuItem download = new JMenuItem("Download");
-		JMenuItem delete = new JMenuItem("Delete");
+		JMenuItem download = new JMenuItem("下载");
+		JMenuItem delete = new JMenuItem("删除");
 		var deleteAction = new DeleteActionListener();
 		delete.addActionListener(deleteAction);
+		var downloadAction = new DownloadActionListener();
+		download.addActionListener(downloadAction);
 
 		table = new FileTable();
 		table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -165,26 +204,39 @@ public class ClientUI extends JFrame {
 			@Override
 			public void mouseClicked(MouseEvent e) {
 				var currentSelection = table.getCurrentSelection();
+				if (currentSelection == null) return;
 				var path = currentPath.isBlank() ?
 						currentSelection.getFileName() : currentPath + "/" + currentSelection.getFileName();
 				if (currentSelection.getType().equals("文件夹") && e.getClickCount() == 2) {
 					currentPath = path;
 					updateCurrentPathLabel();
 					listFiles(currentPath);
+				} else if (!currentSelection.getType().equals("文件夹")) {
 					deleteAction.setPath(path);
+					downloadAction.setPath(path);
+					downloadAction.setMethod(ClientUI.this::downloadFile);
 					try {
-						deleteAction.setMethod(this.getClass().getMethod("removeFolder", String.class));
+						deleteAction.setMethod(ClientUI.this::removeFile);
 					} catch (Exception ex) {
 						ex.printStackTrace();
 					}
-				} else if (!currentSelection.getType().equals("文件夹")){
+					if (e.getButton() == MouseEvent.BUTTON3) {
+						menu.setVisible(true);
+						menu.show(e.getComponent(), e.getX(), e.getY());
+					}
+				} else if (currentSelection.getType().equals("文件夹")) {
 					deleteAction.setPath(path);
+					downloadAction.setMethod(null);
 					try {
-						deleteAction.setMethod(this.getClass().getMethod("removeFile", String.class));
+						deleteAction.setMethod(ClientUI.this::removeFolder);
 					} catch (Exception ex) {
 						ex.printStackTrace();
 					}
-                }
+					if (e.getButton() == MouseEvent.BUTTON3) {
+						menu.setVisible(true);
+						menu.show(e.getComponent(), e.getX(), e.getY());
+					}
+				}
 			}
 
 			@Override
@@ -194,10 +246,7 @@ public class ClientUI extends JFrame {
 
 			@Override
 			public void mouseReleased(MouseEvent e) {
-				if(e.getButton() == MouseEvent.BUTTON3) {
-					menu.setVisible(true);
-					menu.show(e.getComponent(), e.getX(), e.getY());
-				}
+
 			}
 
 			@Override
@@ -211,54 +260,47 @@ public class ClientUI extends JFrame {
 			}
 		});
 
+		menu.add(download);
 		menu.add(delete);
 
 		currentPathLabel.setBounds(16, 16, 600, 20);
 		updateCurrentPathLabel();
 		add(currentPathLabel);
-		pane = new JScrollPane(table);
+		JScrollPane pane = new JScrollPane(table);
 		pane.setBounds(16, 36, 750, 500);
 		add(pane, BorderLayout.CENTER);
 
 		var nf = new JButton("新建文件夹");
-		nf.setBounds(460, 16, 66, 20);
-		nf.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				var nf = JOptionPane.showInputDialog("Input the floder name: ");
-				if(nf == null) return;
-				var floder = currentPath + "/" + nf;
-                System.out.println(floder);
-				createFolder(floder);
-				updateCurrentPathLabel();
-				listFiles(currentPath);
-			}
+		nf.setBounds(426, 16, 100, 20);
+		nf.addActionListener(e -> {
+			var nf1 = JOptionPane.showInputDialog("输入文件夹名称：");
+			if (nf1 == null) return;
+			var folder = currentPath + "/" + nf1;
+			createFolder(folder);
+			updateCurrentPathLabel();
 		});
 		add(nf);
 
 		var upload = new JButton("上传");
 		upload.setBounds(540, 16, 66, 20);
-		upload.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				var chooser = new JFileChooser();
-				chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-				chooser.showDialog(null, "选择");
-				var file = chooser.getSelectedFile();
-				var filename = file.getName();
-				var target = currentPath.isBlank() ? filename : currentPath + "/" + filename;
-				System.out.println(filename.lastIndexOf('/') + 1);
-				System.out.println(filename);
-				System.out.println(target);
+		upload.addActionListener(e -> {
+			var chooser = new JFileChooser();
+			chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+			chooser.setDialogTitle("选择上传文件");
+			chooser.showDialog(null, "选择");
+			var file = chooser.getSelectedFile();
+			if (file == null) return;
+			if (!file.exists()) return;
+			var filename = file.getName();
+			var target = currentPath.isBlank() ? filename : currentPath + "/" + filename;
 
-				uploadFile(file.getPath(), target);
-			}
+			uploadFile(file.getPath(), target);
 		});
 		add(upload);
 
 		var back = new JButton();
 		back.setBounds(620, 16, 66, 20);
-		back.setText("上层");
+		back.setText("上级");
 		back.addMouseListener(new MouseListener() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
@@ -336,9 +378,9 @@ public class ClientUI extends JFrame {
 				try {
 					String[] result = Utils.getResult(input, length);
 					if (!result[0].equals("success"))
-						JOptionPane.showMessageDialog(null, "Error!\n" + result[1]);
+						JOptionPane.showMessageDialog(null, result[1]);
 					else
-						JOptionPane.showMessageDialog(null, "Success!");
+						JOptionPane.showMessageDialog(null, "成功");
 					listFiles(currentPath);
 				} catch (Exception ex) {
 					ex.printStackTrace();
@@ -365,9 +407,9 @@ public class ClientUI extends JFrame {
 				try {
 					String[] result = Utils.getResult(input, length);
 					if (!result[0].equals("success"))
-						JOptionPane.showMessageDialog(null, "Error!\n" + result[1]);
+						JOptionPane.showMessageDialog(null, result[1]);
 					else
-						JOptionPane.showMessageDialog(null, "Success!");
+						JOptionPane.showMessageDialog(null, "成功");
 					listFiles(currentPath);
 				} catch (Exception ex) {
 					ex.printStackTrace();
@@ -394,9 +436,9 @@ public class ClientUI extends JFrame {
 				try {
 					String[] result = Utils.getResult(input, length);
 					if (!result[0].equals("success"))
-						JOptionPane.showMessageDialog(null, "Error!\n" + result[1]);
+						JOptionPane.showMessageDialog(null, result[1]);
 					else
-						JOptionPane.showMessageDialog(null, "Success!");
+						JOptionPane.showMessageDialog(null, "成功");
 					listFiles(currentPath);
 				} catch (Exception ex) {
 					ex.printStackTrace();
@@ -420,7 +462,7 @@ public class ClientUI extends JFrame {
 		var file = new File(target);
 		if (file.exists()) {
 			// 文件已存在
-			JOptionPane.showMessageDialog(null, "The file is already existed!");
+			JOptionPane.showMessageDialog(null, "文件已存在");
 			return;
 		}
 		var task = new SocketTask() {
@@ -431,9 +473,9 @@ public class ClientUI extends JFrame {
 					if (status != 0) { // 标志位为不成功
 						String[] result = Utils.getResult(input, length);
 						if (!result[0].equals("success"))
-							JOptionPane.showMessageDialog(null, "Error!\n" + result[1]);
+							JOptionPane.showMessageDialog(null, result[1]);
 						else
-							JOptionPane.showMessageDialog(null, "Success!");
+							JOptionPane.showMessageDialog(null, "成功");
 						return;
 					}
 					// 否则
@@ -447,7 +489,7 @@ public class ClientUI extends JFrame {
 					}
 					Utils.transferWithLength(length, input, fileStream);
 					fileStream.close();
-					JOptionPane.showMessageDialog(null, "Finished!");
+					JOptionPane.showMessageDialog(null, "成功");
 				} catch (Exception ex) {
 					ex.printStackTrace();
 				}
@@ -473,9 +515,9 @@ public class ClientUI extends JFrame {
 				try {
 					String[] result = Utils.getResult(input, length);
 					if (!result[0].equals("success"))
-						JOptionPane.showMessageDialog(null, "Error!\n" + result[1]);
+						JOptionPane.showMessageDialog(null, result[1]);
 					else
-						JOptionPane.showMessageDialog(null, "Success!");
+						JOptionPane.showMessageDialog(null, "成功");
 					listFiles(currentPath);
 				} catch (Exception ex) {
 					ex.printStackTrace();
@@ -485,7 +527,7 @@ public class ClientUI extends JFrame {
 		var file = new File(path);
 		if (!file.exists()) {
 			// 本机路径为 path 的文件不存在
-			JOptionPane.showMessageDialog(null, "File doesn't exist");
+			JOptionPane.showMessageDialog(null, "文件不存在");
 			return;
 		}
 		var fileLen = (int) file.length();
@@ -522,7 +564,7 @@ public class ClientUI extends JFrame {
 				try {
 					if (status != 0) { // 标志位为不成功
 						String[] result = Utils.getResult(input, length);
-						JOptionPane.showMessageDialog(null, "Error!\n" + result[1]);
+						JOptionPane.showMessageDialog(null, result[1]);
 						return;
 					}
 					// 否则

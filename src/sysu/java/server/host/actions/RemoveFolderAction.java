@@ -15,17 +15,17 @@ public class RemoveFolderAction extends Action {
         try {
             var pathStr = new String(input.readNBytes(length), StandardCharsets.UTF_8);
             if (!Utils.checkPath(pathStr) || pathStr.isBlank()) {
-                writeFailure("Illegal path");
+                writeFailure("路径非法");
                 return false;
             }
             var path = Paths.get(host.getBasePath(), pathStr).toAbsolutePath();
             var file = path.toFile();
             if (file.isDirectory() && file.exists()) {
                 Utils.deleteDirectory(file);
-                writeSuccess("Folder removed successfully");
+                writeSuccess("文件夹删除成功");
                 return true;
             } else {
-                writeFailure("Folder removed failed");
+                writeFailure("文件夹删除失败");
                 return false;
             }
         } catch (IOException e) {

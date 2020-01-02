@@ -16,7 +16,7 @@ public class ListFilesAction extends Action {
         try {
             var pathStr = new String(input.readNBytes(length), StandardCharsets.UTF_8);
             if (!Utils.checkPath(pathStr)) {
-                writeFailure("Illegal path");
+                writeFailure("路径非法");
                 return false;
             }
             var path = Paths.get(host.getBasePath(), pathStr).toAbsolutePath();

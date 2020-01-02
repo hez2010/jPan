@@ -17,20 +17,20 @@ public class UploadFileAction extends Action {
             var pathStr = new String(pathBuf, StandardCharsets.UTF_8);
             if (!Utils.checkPath(pathStr)) {
                 fileStream = new ByteArrayOutputStream();
-                writeFailure("Illegal path");
+                writeFailure("路径非法");
             }
             var path = Paths.get(host.getBasePath(), pathStr).toAbsolutePath();
             var file = path.toFile();
             if (fileStream == null) {
                 if (file.exists()) {
                     fileStream = new ByteArrayOutputStream();
-                    writeFailure("File with the same name already exists");
+                    writeFailure("存在同名文件");
                 } else {
                     try {
                         fileStream = new FileOutputStream(file);
                     } catch (Exception ex) {
                         fileStream = new ByteArrayOutputStream();
-                        writeFailure("Folder doesn't exist");
+                        writeFailure("文件夹不存在");
                     }
                 }
             }
@@ -38,7 +38,7 @@ public class UploadFileAction extends Action {
             try {
                 Utils.transferWithLength(remain, input, fileStream);
                 if (fileStream instanceof FileOutputStream) {
-                    writeSuccess("Successfully uploaded file");
+                    writeSuccess("文件上传成功");
                     return true;
                 }
             } finally {

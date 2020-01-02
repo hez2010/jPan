@@ -14,13 +14,13 @@ public class DownloadFileAction extends Action {
         try {
             var pathStr = new String(input.readNBytes(length), StandardCharsets.UTF_8);
             if (!Utils.checkPath(pathStr)) {
-                writeFailure("Illegal path");
+                writeFailure("路径非法");
                 return false;
             }
             var path = Paths.get(host.getBasePath(), pathStr).toAbsolutePath();
             var file = path.toFile();
             if (!file.exists()) {
-                writeFailure("File with the name doesn't exist");
+                writeFailure("文件不存在");
                 return false;
             }
             var fileLen = (int) file.length();
