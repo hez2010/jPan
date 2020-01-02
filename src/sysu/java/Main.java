@@ -8,10 +8,16 @@ import java.util.Objects;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        if (args.length <= 0) args = new String[]{"--client"};
+        if (args.length <= 0) args = new String[]{"--help"};
 
         IPanHostBuilder builder = null;
         var mode = args[0];
+        if (Objects.equals(mode, "--help")) {
+            System.out.println("Arguments: ");
+            System.out.println("  --server : Run server");
+            System.out.println("  --client : Run client");
+            return;
+        }
         if (Objects.equals(mode, "--server")) {
             var serverBuilder = new ServerPanHostBuilder();
             serverBuilder.setPort(3000);
